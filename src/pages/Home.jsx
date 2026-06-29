@@ -1,20 +1,22 @@
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Card from "../components/Card";
+import Footer from "../components/Footer";
 
-function Home() {
+function Home({ darkMode, setDarkMode }) {
     return (
-        <div className="bg-gray-950 min-h-screen">
-            <Navbar />
+        <div className="bg-white dark:bg-gray-950 min-h-screen text-gray-900 dark:text-white">
+            <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
+
             <Hero />
 
-            {/* Features Section */}
             <section className="max-w-7xl mx-auto px-8 py-20">
                 <div className="text-center mb-14">
-                    <h2 className="text-4xl font-bold text-white mb-4">
+                    <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
                         Core Features
                     </h2>
-                    <p className="text-gray-400">
+
+                    <p className="text-gray-600 dark:text-gray-400">
                         Advanced AI insights for smarter guest experience management.
                     </p>
                 </div>
@@ -39,6 +41,8 @@ function Home() {
                     />
                 </div>
             </section>
+
+            <Footer />
         </div>
     );
 }
