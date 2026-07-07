@@ -1,122 +1,161 @@
-import reviews from "../data/reviews.js";
+import Review from "../models/Review.js";
 
 // GET /api/reviews
-export const getAllReviews = (req, res) => {
-  res.status(200).json({
-    success: true,
-    count: reviews.length,
-    data: reviews,
-  });
+export const getAllReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      data: reviews,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch reviews",
+    });
+  }
 };
 
 // GET /api/reviews/:id
-export const getReviewById = (req, res) => {
-  const id = Number(req.params.id);
-  const review = reviews.find((item) => item.id === id);
+export const getReviewById = async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id);
 
-  if (!review) {
-    return res.status(404).json({
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: "Review not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: review,
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
-      message: "Review not found",
+      message: "Invalid review ID",
     });
   }
-
-  res.status(200).json({
-    success: true,
-    data: review,
-  });
 };
 
 // POST /api/reviews
-export const createReview = (req, res) => {
-  const { review, sentiment, theme, response } = req.body;
+export const createReview = async (req, res) => {
+  try {
+    const { review, sentiment, theme, response } = req.body;
 
-  if (!review || !sentiment || !theme || !response) {
-    return res.status(400).json({
+    if (!review || !sentiment || !theme || !response) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    const newReview = await Review.create({
+      review,
+      sentiment,
+      theme,
+      response,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Review created successfully",
+      data: newReview,
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
-      message: "All fields are required",
+      message: "Failed to create review",
     });
   }
-
-  const newReview = {
-    id: reviews.length + 1,
-    review,
-    sentiment,
-    theme,
-    response,
-  };
-
-  reviews.push(newReview);
-
-  res.status(201).json({
-    success: true,
-    message: "Review created successfully",
-    data: newReview,
-  });
 };
 
 // PUT /api/reviews/:id
-export const updateReview = (req, res) => {
-  const id = Number(req.params.id);
-  const reviewIndex = reviews.findIndex((item) => item.id === id);
+export const updateReview = async (req, res) => {
+  try {
+    const updatedReview = await Review.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
 
-  if (reviewIndex === -1) {
-    return res.status(404).json({
+    if (!updatedReview) {
+      return res.status(404).json({
+        success: false,
+        message: "Review not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Review updated successfully",
+      data: updatedReview,
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
-      message: "Review not found",
+      message: "Failed to update review",
     });
   }
-
-  reviews[reviewIndex] = {
-    ...reviews[reviewIndex],
-    ...req.body,
-  };
-
-  res.status(200).json({
-    success: true,
-    message: "Review updated successfully",
-    data: reviews[reviewIndex],
-  });
 };
 
 // DELETE /api/reviews/:id
-export const deleteReview = (req, res) => {
-  const id = Number(req.params.id);
-  const reviewIndex = reviews.findIndex((item) => item.id === id);
+export const deleteReview = async (req, res) => {
+  try {
+    const deletedReview = await Review.findByIdAndDelete(req.params.id);
 
-  if (reviewIndex === -1) {
-    return res.status(404).json({
+    if (!deletedReview) {
+      return res.status(404).json({
+        success: false,
+        message: "Review not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Review deleted successfully",
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
-      message: "Review not found",
+      message: "Failed to delete review",
     });
   }
-
-  reviews.splice(reviewIndex, 1);
-
-  res.status(204).send();
 };
 
 // GET /api/reviews/search?q=food
-export const searchReviews = (req, res) => {
-  const query = req.query.q;
+export const searchReviews = async (req, res) => {
+  try {
+    const query = req.query.q;
 
-  if (!query) {
-    return res.status(400).json({
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query is required",
+      });
+    }
+
+    const results = await Review.find({
+      $or: [
+        { review: { $regex: query, $options: "i" } },
+        { sentiment: { $regex: query, $options: "i" } },
+        { theme: { $regex: query, $options: "i" } },
+      ],
+    });
+
+    res.status(200).json({
+      success: true,
+      count: results.length,
+      data: results,
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
-      message: "Search query is required",
+      message: "Search failed",
     });
   }
-
-  const results = reviews.filter(
-    (item) =>
-      item.review.toLowerCase().includes(query.toLowerCase()) ||
-      item.theme.toLowerCase().includes(query.toLowerCase()) ||
-      item.sentiment.toLowerCase().includes(query.toLowerCase())
-  );
-
-  res.status(200).json({
-    success: true,
-    count: results.length,
-    data: results,
-  });
 };
