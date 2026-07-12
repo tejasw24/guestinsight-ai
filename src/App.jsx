@@ -1,13 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Analyzer from "./pages/Analyzer";
 import ComponentDemo from "./pages/ComponentDemo";
 import OAuthSuccess from "./pages/OAuthSuccess";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -24,46 +27,55 @@ function App() {
     }
   }, [darkMode]);
 
+  const themeProps = {
+    darkMode,
+    setDarkMode,
+  };
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={<Home darkMode={darkMode} setDarkMode={setDarkMode} />}
-        />
+        {/* Public routes */}
+        <Route path="/" element={<Home {...themeProps} />} />
 
-        <Route
-          path="/about"
-          element={<About darkMode={darkMode} setDarkMode={setDarkMode} />}
-        />
+        <Route path="/about" element={<About {...themeProps} />} />
 
+        <Route path="/login" element={<Login {...themeProps} />} />
+
+        <Route path="/register" element={<Register {...themeProps} />} />
+
+        <Route path="/oauth-success" element={<OAuthSuccess />} />
+
+        {/* Protected routes */}
         <Route
           path="/dashboard"
-          element={<Dashboard darkMode={darkMode} setDarkMode={setDarkMode} />}
-        />
-
-        <Route
-          path="/login"
-          element={<Login darkMode={darkMode} setDarkMode={setDarkMode} />}
+          element={
+            <ProtectedRoute>
+              <Dashboard {...themeProps} />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/analyzer"
-          element={<Analyzer darkMode={darkMode} setDarkMode={setDarkMode} />}
+          element={
+            <ProtectedRoute>
+              <Analyzer {...themeProps} />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/components"
           element={
-            <ComponentDemo
-              darkMode={darkMode}
-              setDarkMode={setDarkMode}
-            />
+            <ProtectedRoute>
+              <ComponentDemo {...themeProps} />
+            </ProtectedRoute>
           }
         />
 
-        {/* Google OAuth Success */}
-        <Route path="/oauth-success" element={<OAuthSuccess />} />
+        {/* Unknown routes redirect to Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
