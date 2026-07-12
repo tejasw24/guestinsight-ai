@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Analyzer from "./pages/Analyzer";
 import ComponentDemo from "./pages/ComponentDemo";
+import OAuthSuccess from "./pages/OAuthSuccess";
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -26,12 +27,43 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home darkMode={darkMode} setDarkMode={setDarkMode} />} />
-        <Route path="/about" element={<About darkMode={darkMode} setDarkMode={setDarkMode} />} />
-        <Route path="/dashboard" element={<Dashboard darkMode={darkMode} setDarkMode={setDarkMode} />} />
-        <Route path="/login" element={<Login darkMode={darkMode} setDarkMode={setDarkMode} />} />
-        <Route path="/analyzer" element={<Analyzer darkMode={darkMode} setDarkMode={setDarkMode} />} />
-        <Route path="/components" element={<ComponentDemo darkMode={darkMode} setDarkMode={setDarkMode} />} />
+        <Route
+          path="/"
+          element={<Home darkMode={darkMode} setDarkMode={setDarkMode} />}
+        />
+
+        <Route
+          path="/about"
+          element={<About darkMode={darkMode} setDarkMode={setDarkMode} />}
+        />
+
+        <Route
+          path="/dashboard"
+          element={<Dashboard darkMode={darkMode} setDarkMode={setDarkMode} />}
+        />
+
+        <Route
+          path="/login"
+          element={<Login darkMode={darkMode} setDarkMode={setDarkMode} />}
+        />
+
+        <Route
+          path="/analyzer"
+          element={<Analyzer darkMode={darkMode} setDarkMode={setDarkMode} />}
+        />
+
+        <Route
+          path="/components"
+          element={
+            <ComponentDemo
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+            />
+          }
+        />
+
+        {/* Google OAuth Success */}
+        <Route path="/oauth-success" element={<OAuthSuccess />} />
       </Routes>
     </BrowserRouter>
   );
