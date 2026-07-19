@@ -18,6 +18,7 @@
   "author": "Tejas Raj",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^2.12.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",

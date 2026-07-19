@@ -10,7 +10,6 @@ import {
 } from "../controllers/reviewController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
@@ -21,7 +20,7 @@ router.get("/:id", protect, getReviewById);
 router.post("/", protect, createReview);
 
 // Only admin can update or delete reviews
-router.put("/:id", protect, authorizeRoles("admin"), updateReview);
-router.delete("/:id", protect, authorizeRoles("admin"), deleteReview);
+router.put("/:id", protect, updateReview);
+router.delete("/:id", protect, deleteReview);
 
 export default router;

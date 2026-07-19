@@ -7,6 +7,7 @@ import connectDB from "./config/db.js";
 import passport from "./config/passport.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.get("/", (req, res) => {
 // API routes
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Start server
 app.listen(PORT, () => {
