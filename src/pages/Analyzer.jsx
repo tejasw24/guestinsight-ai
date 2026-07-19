@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Navbar from "../components/Navbar";
 import { Loader, Toast } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import API_BASE_URL from "../services/api";
@@ -13,21 +18,208 @@ function Analyzer({ darkMode, setDarkMode }) {
 
   const [results, setResults] = useState([]);
   const [reviewText, setReviewText] = useState("");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sentimentFilter, setSentimentFilter] = useState("All");
+  const [themeFilter, setThemeFilter] = useState("All");
+
+  const [reviewToDelete, setReviewToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast(message);
     setToastType(type);
-  };
+  }, []);
 
   const handleUnauthorized = useCallback(() => {
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
   }, [logout, navigate]);
 
+  const analyzeReviewLocally = (text) => {
+    const normalizedText = text.toLowerCase();
+
+    const positiveWords = [
+      "good",
+      "great",
+      "excellent",
+      "amazing",
+      "wonderful",
+      "clean",
+      "comfortable",
+      "friendly",
+      "helpful",
+      "beautiful",
+      "perfect",
+      "pleasant",
+      "delicious",
+      "recommend",
+      "recommended",
+      "loved",
+      "love",
+      "enjoyed",
+      "enjoy",
+      "best",
+      "fantastic",
+      "peaceful",
+      "nice",
+      "spacious",
+      "affordable",
+      "satisfied",
+      "happy",
+    ];
+
+    const negativeWords = [
+      "bad",
+      "poor",
+      "dirty",
+      "worst",
+      "terrible",
+      "horrible",
+      "uncomfortable",
+      "rude",
+      "slow",
+      "noisy",
+      "expensive",
+      "disappointed",
+      "broken",
+      "smelly",
+      "unhelpful",
+      "awful",
+      "unsafe",
+      "overpriced",
+      "late",
+      "issue",
+      "problem",
+      "poorly",
+      "unpleasant",
+      "disappointing",
+    ];
+
+    const positiveScore = positiveWords.reduce(
+      (score, word) =>
+        normalizedText.includes(word) ? score + 1 : score,
+      0
+    );
+
+    const negativeScore = negativeWords.reduce(
+      (score, word) =>
+        normalizedText.includes(word) ? score + 1 : score,
+      0
+    );
+
+    let sentiment = "Neutral";
+
+    if (positiveScore > negativeScore) {
+      sentiment = "Positive";
+    } else if (negativeScore > positiveScore) {
+      sentiment = "Negative";
+    }
+
+    const cleanlinessWords = [
+      "clean",
+      "dirty",
+      "room",
+      "bathroom",
+      "bed",
+      "smelly",
+      "hygiene",
+      "washroom",
+      "dust",
+    ];
+
+    const foodWords = [
+      "food",
+      "breakfast",
+      "dinner",
+      "lunch",
+      "meal",
+      "tea",
+      "coffee",
+      "delicious",
+      "restaurant",
+    ];
+
+    const hostWords = [
+      "host",
+      "staff",
+      "owner",
+      "service",
+      "manager",
+      "helpful",
+      "rude",
+      "friendly",
+      "hospitality",
+    ];
+
+    const locationWords = [
+      "location",
+      "view",
+      "place",
+      "area",
+      "mountain",
+      "road",
+      "market",
+      "nearby",
+      "distance",
+      "scenery",
+    ];
+
+    const valueWords = [
+      "price",
+      "cost",
+      "expensive",
+      "affordable",
+      "value",
+      "overpriced",
+      "money",
+      "budget",
+    ];
+
+    const containsAnyWord = (wordList) =>
+      wordList.some((word) => normalizedText.includes(word));
+
+    let theme = "Experience";
+
+    if (containsAnyWord(cleanlinessWords)) {
+      theme = "Cleanliness";
+    } else if (containsAnyWord(foodWords)) {
+      theme = "Food";
+    } else if (containsAnyWord(hostWords)) {
+      theme = "Host";
+    } else if (containsAnyWord(locationWords)) {
+      theme = "Location";
+    } else if (containsAnyWord(valueWords)) {
+      theme = "Value";
+    }
+
+    let managementResponse =
+      "Thank you for sharing your feedback. We appreciate your time and will use your comments to improve the guest experience.";
+
+    if (sentiment === "Positive") {
+      managementResponse =
+        "Thank you for your wonderful feedback. We are delighted that you enjoyed your stay and hope to welcome you again soon.";
+    } else if (sentiment === "Negative") {
+      managementResponse =
+        "We are sorry that your experience did not meet expectations. Thank you for bringing this to our attention, and we will work to improve.";
+    }
+
+    return {
+      sentiment,
+      theme,
+      response: managementResponse,
+    };
+  };
+
   const fetchReviews = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -38,7 +230,13 @@ function Analyzer({ darkMode, setDarkMode }) {
         },
       });
 
-      const data = await response.json();
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (response.status === 401) {
         handleUnauthorized();
@@ -51,32 +249,44 @@ function Analyzer({ darkMode, setDarkMode }) {
 
       const reviewList = Array.isArray(data)
         ? data
-        : Array.isArray(data.data)
-          ? data.data
-          : [];
+        : Array.isArray(data.reviews)
+          ? data.reviews
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
 
       setResults(reviewList);
     } catch (error) {
-      showToast(error.message || "Backend connection failed", "error");
+      showToast(
+        error.message || "Backend connection failed",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
-  }, [token, handleUnauthorized]);
+  }, [token, handleUnauthorized, showToast]);
 
   useEffect(() => {
-    if (token) {
-      fetchReviews();
-    }
-  }, [token, fetchReviews]);
+    fetchReviews();
+  }, [fetchReviews]);
 
   const handleAnalyze = async () => {
-    if (!reviewText.trim()) {
+    const trimmedReview = reviewText.trim();
+
+    if (!trimmedReview) {
       showToast("Please enter a review first", "error");
+      return;
+    }
+
+    if (!token) {
+      handleUnauthorized();
       return;
     }
 
     try {
       setLoading(true);
+
+      const analysis = analyzeReviewLocally(trimmedReview);
 
       const response = await fetch(`${API_BASE_URL}/reviews`, {
         method: "POST",
@@ -85,14 +295,20 @@ function Analyzer({ darkMode, setDarkMode }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          review: reviewText.trim(),
-          sentiment: "Positive",
-          theme: "Experience",
-          response: "Thank you for sharing your valuable feedback.",
+          review: trimmedReview,
+          sentiment: analysis.sentiment,
+          theme: analysis.theme,
+          response: analysis.response,
         }),
       });
 
-      const data = await response.json();
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (response.status === 401) {
         handleUnauthorized();
@@ -100,16 +316,23 @@ function Analyzer({ darkMode, setDarkMode }) {
       }
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to add review");
+        throw new Error(
+          data.message || "Failed to analyze review"
+        );
       }
 
       setReviewText("");
-      showToast("Review added successfully", "success");
+
+      showToast(
+        `Review analyzed as ${analysis.sentiment}`,
+        "success"
+      );
 
       await fetchReviews();
     } catch (error) {
       showToast(
-        error.message || "Something went wrong while analyzing",
+        error.message ||
+        "Something went wrong while analyzing the review",
         "error"
       );
     } finally {
@@ -117,9 +340,157 @@ function Analyzer({ darkMode, setDarkMode }) {
     }
   };
 
+  const handleDeleteReview = async () => {
+    const reviewId =
+      reviewToDelete?._id || reviewToDelete?.id;
+
+    if (!reviewId) {
+      showToast("Review ID is missing", "error");
+      setReviewToDelete(null);
+      return;
+    }
+
+    if (!token) {
+      handleUnauthorized();
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/reviews/${reviewId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to delete review"
+        );
+      }
+
+      setResults((currentResults) =>
+        currentResults.filter(
+          (item) => (item._id || item.id) !== reviewId
+        )
+      );
+
+      setReviewToDelete(null);
+      showToast("Review deleted successfully", "success");
+    } catch (error) {
+      showToast(
+        error.message || "Unable to delete review",
+        "error"
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const availableThemes = useMemo(() => {
+    const themes = results
+      .map((item) => item.theme?.trim())
+      .filter(Boolean);
+
+    return ["All", ...new Set(themes)];
+  }, [results]);
+
+  const filteredResults = useMemo(() => {
+    const normalizedSearch = searchTerm
+      .trim()
+      .toLowerCase();
+
+    return results.filter((item) => {
+      const review = String(item.review || "").toLowerCase();
+      const response = String(
+        item.response || ""
+      ).toLowerCase();
+
+      const sentiment =
+        String(item.sentiment || "").trim() || "Neutral";
+
+      const theme =
+        String(item.theme || "").trim() || "Experience";
+
+      const matchesSearch =
+        !normalizedSearch ||
+        review.includes(normalizedSearch) ||
+        response.includes(normalizedSearch) ||
+        sentiment
+          .toLowerCase()
+          .includes(normalizedSearch) ||
+        theme.toLowerCase().includes(normalizedSearch);
+
+      const matchesSentiment =
+        sentimentFilter === "All" ||
+        sentiment.toLowerCase() ===
+        sentimentFilter.toLowerCase();
+
+      const matchesTheme =
+        themeFilter === "All" ||
+        theme.toLowerCase() === themeFilter.toLowerCase();
+
+      return (
+        matchesSearch &&
+        matchesSentiment &&
+        matchesTheme
+      );
+    });
+  }, [
+    results,
+    searchTerm,
+    sentimentFilter,
+    themeFilter,
+  ]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSentimentFilter("All");
+    setThemeFilter("All");
+  };
+
+  const filtersActive =
+    searchTerm.trim() !== "" ||
+    sentimentFilter !== "All" ||
+    themeFilter !== "All";
+
+  const getSentimentBadge = (sentiment = "") => {
+    switch (sentiment.toLowerCase()) {
+      case "positive":
+        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
+
+      case "negative":
+        return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
+
+      default:
+        return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
-      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white">
+      <Navbar
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
 
       {toast && (
         <Toast
@@ -129,106 +500,446 @@ function Analyzer({ darkMode, setDarkMode }) {
         />
       )}
 
-      <main className="mx-auto max-w-7xl px-4 py-28 sm:px-6 lg:px-8">
-        <h1 className="mb-4 text-4xl font-bold sm:text-5xl">
-          Review Sentiment Analyzer
-        </h1>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-28 sm:px-6 lg:px-8">
+        <section className="mb-8">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+            GuestInsight AI
+          </p>
 
-        <p className="mb-10 text-gray-600 dark:text-gray-400">
-          Analyze guest feedback and store the result securely in your review
-          history.
-        </p>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+            Review Sentiment Analyzer
+          </h1>
 
-        <section className="mb-12 rounded-2xl border border-gray-200 bg-gray-100 p-6 shadow-xl dark:border-white/20 dark:bg-white/10 sm:p-8">
-          <label
-            htmlFor="review"
-            className="mb-3 block text-lg font-semibold"
-          >
-            Guest review
-          </label>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400 sm:text-base">
+            Enter guest feedback to detect sentiment,
+            identify its main theme, and generate a suitable
+            management response.
+          </p>
+        </section>
+
+        <section className="mb-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <label
+                htmlFor="review"
+                className="text-lg font-bold"
+              >
+                Guest Review
+              </label>
+
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Paste a single guest review below.
+              </p>
+            </div>
+
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Maximum 1000 characters
+            </span>
+          </div>
 
           <textarea
             id="review"
-            rows="8"
+            rows={8}
             value={reviewText}
-            onChange={(event) => setReviewText(event.target.value)}
-            placeholder="Enter a guest review here..."
+            onChange={(event) =>
+              setReviewText(event.target.value)
+            }
+            placeholder="Example: The room was clean, the host was friendly and the food was excellent."
             maxLength={1000}
-            className="w-full rounded-xl border border-gray-300 bg-white p-5 outline-none focus:ring-2 focus:ring-green-500 dark:border-white/20 dark:bg-black/30"
+            className="mt-5 w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm leading-6 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950 dark:placeholder:text-slate-500"
           />
 
-          <div className="mt-2 text-right text-sm text-gray-500">
-            {reviewText.length}/1000
-          </div>
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p
+              className={`text-sm ${reviewText.length >= 900
+                  ? "font-semibold text-amber-600 dark:text-amber-400"
+                  : "text-slate-500 dark:text-slate-400"
+                }`}
+            >
+              {reviewText.length}/1000 characters
+            </p>
 
-          <button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={loading}
-            className="mt-4 rounded-xl bg-green-600 px-8 py-4 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Analyzing..." : "Analyze Review"}
-          </button>
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={loading || !reviewText.trim()}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <span className="text-lg">✦</span>
+                  Analyze Review
+                </>
+              )}
+            </button>
+          </div>
         </section>
 
-        {loading && results.length === 0 ? (
-          <div className="flex justify-center py-10">
-            <Loader />
+        <section>
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">
+                Review History
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Search and filter all reviews stored in your
+                database.
+              </p>
+            </div>
+
+            <span className="w-fit rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {filteredResults.length} of {results.length}{" "}
+              reviews
+            </span>
           </div>
-        ) : results.length === 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-gray-100 p-10 text-center shadow-xl dark:border-white/20 dark:bg-white/10">
-            <h2 className="mb-2 text-2xl font-semibold">
-              No reviews available
-            </h2>
 
-            <p className="text-gray-600 dark:text-gray-400">
-              Enter your first guest review above and click Analyze Review.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-gray-100 p-4 shadow-xl dark:border-white/20 dark:bg-white/10 sm:p-6">
-            <table className="w-full min-w-[800px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-gray-300 text-green-600 dark:border-white/20">
-                  <th className="p-4">Review</th>
-                  <th className="p-4">Sentiment</th>
-                  <th className="p-4">Theme</th>
-                  <th className="p-4">Suggested Response</th>
-                </tr>
-              </thead>
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="grid gap-4 lg:grid-cols-[1fr_190px_190px_auto]">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  🔍
+                </span>
 
-              <tbody>
-                {results.map((item) => (
-                  <tr
-                    key={item._id || item.id}
-                    className="border-b border-gray-200 dark:border-white/10"
-                  >
-                    <td className="p-4">{item.review}</td>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) =>
+                    setSearchTerm(event.target.value)
+                  }
+                  placeholder="Search reviews, themes or responses..."
+                  className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950"
+                />
+              </div>
 
-                    <td
-                      className={`p-4 font-semibold ${
-                        item.sentiment?.toLowerCase() === "positive"
-                          ? "text-green-600"
-                          : item.sentiment?.toLowerCase() === "negative"
-                            ? "text-red-500"
-                            : "text-yellow-500"
-                      }`}
-                    >
-                      {item.sentiment}
-                    </td>
+              <select
+                value={sentimentFilter}
+                onChange={(event) =>
+                  setSentimentFilter(event.target.value)
+                }
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950"
+              >
+                <option value="All">All Sentiments</option>
+                <option value="Positive">Positive</option>
+                <option value="Neutral">Neutral</option>
+                <option value="Negative">Negative</option>
+              </select>
 
-                    <td className="p-4">{item.theme}</td>
-
-                    <td className="p-4">{item.response}</td>
-                  </tr>
+              <select
+                value={themeFilter}
+                onChange={(event) =>
+                  setThemeFilter(event.target.value)
+                }
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700 dark:bg-slate-950"
+              >
+                {availableThemes.map((theme) => (
+                  <option key={theme} value={theme}>
+                    {theme === "All"
+                      ? "All Themes"
+                      : theme}
+                  </option>
                 ))}
-              </tbody>
-            </table>
+              </select>
+
+              <button
+                type="button"
+                onClick={clearFilters}
+                disabled={!filtersActive}
+                className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:border-red-500/40 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+              >
+                Clear
+              </button>
+            </div>
           </div>
-        )}
+
+          {loading && results.length === 0 ? (
+            <div className="flex justify-center rounded-2xl border border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900">
+              <Loader />
+            </div>
+          ) : results.length === 0 ? (
+            <EmptyState
+              title="No reviews available"
+              message="Enter your first guest review above and click Analyze Review."
+            />
+          ) : filteredResults.length === 0 ? (
+            <EmptyState
+              title="No matching reviews"
+              message="Try changing your search text or selected filters."
+              showClearButton
+              onClear={clearFilters}
+            />
+          ) : (
+            <>
+              <div className="grid gap-5 md:hidden">
+                {filteredResults.map((item) => (
+                  <article
+                    key={item._id || item.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getSentimentBadge(
+                          item.sentiment
+                        )}`}
+                      >
+                        {item.sentiment || "Neutral"}
+                      </span>
+
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {item.theme || "Experience"}
+                      </span>
+                    </div>
+
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Guest Review
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                        {item.review}
+                      </p>
+                    </div>
+
+                    <div className="mt-5 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Suggested Response
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        {item.response}
+                      </p>
+                    </div>
+
+                    <div className="mt-5 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReviewToDelete(item)
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
+                      >
+                        <DeleteIcon />
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-left">
+                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                      <tr>
+                        <th className="px-6 py-4">
+                          Review
+                        </th>
+
+                        <th className="px-6 py-4">
+                          Sentiment
+                        </th>
+
+                        <th className="px-6 py-4">
+                          Theme
+                        </th>
+
+                        <th className="px-6 py-4">
+                          Suggested Response
+                        </th>
+
+                        <th className="px-6 py-4 text-right">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                      {filteredResults.map((item) => (
+                        <tr
+                          key={item._id || item.id}
+                          className="transition hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                        >
+                          <td className="max-w-sm px-6 py-5 text-sm leading-6 text-slate-700 dark:text-slate-200">
+                            {item.review}
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getSentimentBadge(
+                                item.sentiment
+                              )}`}
+                            >
+                              {item.sentiment || "Neutral"}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                              {item.theme || "Experience"}
+                            </span>
+                          </td>
+
+                          <td className="max-w-md px-6 py-5 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            {item.response}
+                          </td>
+
+                          <td className="px-6 py-5 text-right">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setReviewToDelete(item)
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
+                            >
+                              <DeleteIcon />
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
       </main>
 
+      {reviewToDelete && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
+          onClick={() => {
+            if (!deleting) {
+              setReviewToDelete(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-review-title"
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300">
+                <DeleteIcon className="h-6 w-6" />
+              </div>
+
+              <div>
+                <h2
+                  id="delete-review-title"
+                  className="text-xl font-bold text-slate-900 dark:text-white"
+                >
+                  Delete this review?
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  This review will be permanently removed from
+                  your database. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
+              <p className="line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {reviewToDelete.review ||
+                  "Review text unavailable"}
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setReviewToDelete(null)}
+                disabled={deleting}
+                className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteReview}
+                disabled={deleting}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Review"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
+    </div>
+  );
+}
+
+function DeleteIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  );
+}
+
+function EmptyState({
+  title,
+  message,
+  showClearButton = false,
+  onClear,
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center dark:border-slate-700 dark:bg-slate-900">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-2xl text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+        ◫
+      </div>
+
+      <h3 className="mt-4 text-xl font-bold">
+        {title}
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
+        {message}
+      </p>
+
+      {showClearButton && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+        >
+          Clear Filters
+        </button>
+      )}
     </div>
   );
 }
