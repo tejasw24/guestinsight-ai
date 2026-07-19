@@ -26,7 +26,8 @@ function Analyzer({ darkMode, setDarkMode }) {
   const [reviewToDelete, setReviewToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [fetchingReviews, setFetchingReviews] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
 
@@ -40,180 +41,6 @@ function Analyzer({ darkMode, setDarkMode }) {
     navigate("/login", { replace: true });
   }, [logout, navigate]);
 
-  const analyzeReviewLocally = (text) => {
-    const normalizedText = text.toLowerCase();
-
-    const positiveWords = [
-      "good",
-      "great",
-      "excellent",
-      "amazing",
-      "wonderful",
-      "clean",
-      "comfortable",
-      "friendly",
-      "helpful",
-      "beautiful",
-      "perfect",
-      "pleasant",
-      "delicious",
-      "recommend",
-      "recommended",
-      "loved",
-      "love",
-      "enjoyed",
-      "enjoy",
-      "best",
-      "fantastic",
-      "peaceful",
-      "nice",
-      "spacious",
-      "affordable",
-      "satisfied",
-      "happy",
-    ];
-
-    const negativeWords = [
-      "bad",
-      "poor",
-      "dirty",
-      "worst",
-      "terrible",
-      "horrible",
-      "uncomfortable",
-      "rude",
-      "slow",
-      "noisy",
-      "expensive",
-      "disappointed",
-      "broken",
-      "smelly",
-      "unhelpful",
-      "awful",
-      "unsafe",
-      "overpriced",
-      "late",
-      "issue",
-      "problem",
-      "poorly",
-      "unpleasant",
-      "disappointing",
-    ];
-
-    const positiveScore = positiveWords.reduce(
-      (score, word) =>
-        normalizedText.includes(word) ? score + 1 : score,
-      0
-    );
-
-    const negativeScore = negativeWords.reduce(
-      (score, word) =>
-        normalizedText.includes(word) ? score + 1 : score,
-      0
-    );
-
-    let sentiment = "Neutral";
-
-    if (positiveScore > negativeScore) {
-      sentiment = "Positive";
-    } else if (negativeScore > positiveScore) {
-      sentiment = "Negative";
-    }
-
-    const cleanlinessWords = [
-      "clean",
-      "dirty",
-      "room",
-      "bathroom",
-      "bed",
-      "smelly",
-      "hygiene",
-      "washroom",
-      "dust",
-    ];
-
-    const foodWords = [
-      "food",
-      "breakfast",
-      "dinner",
-      "lunch",
-      "meal",
-      "tea",
-      "coffee",
-      "delicious",
-      "restaurant",
-    ];
-
-    const hostWords = [
-      "host",
-      "staff",
-      "owner",
-      "service",
-      "manager",
-      "helpful",
-      "rude",
-      "friendly",
-      "hospitality",
-    ];
-
-    const locationWords = [
-      "location",
-      "view",
-      "place",
-      "area",
-      "mountain",
-      "road",
-      "market",
-      "nearby",
-      "distance",
-      "scenery",
-    ];
-
-    const valueWords = [
-      "price",
-      "cost",
-      "expensive",
-      "affordable",
-      "value",
-      "overpriced",
-      "money",
-      "budget",
-    ];
-
-    const containsAnyWord = (wordList) =>
-      wordList.some((word) => normalizedText.includes(word));
-
-    let theme = "Experience";
-
-    if (containsAnyWord(cleanlinessWords)) {
-      theme = "Cleanliness";
-    } else if (containsAnyWord(foodWords)) {
-      theme = "Food";
-    } else if (containsAnyWord(hostWords)) {
-      theme = "Host";
-    } else if (containsAnyWord(locationWords)) {
-      theme = "Location";
-    } else if (containsAnyWord(valueWords)) {
-      theme = "Value";
-    }
-
-    let managementResponse =
-      "Thank you for sharing your feedback. We appreciate your time and will use your comments to improve the guest experience.";
-
-    if (sentiment === "Positive") {
-      managementResponse =
-        "Thank you for your wonderful feedback. We are delighted that you enjoyed your stay and hope to welcome you again soon.";
-    } else if (sentiment === "Negative") {
-      managementResponse =
-        "We are sorry that your experience did not meet expectations. Thank you for bringing this to our attention, and we will work to improve.";
-    }
-
-    return {
-      sentiment,
-      theme,
-      response: managementResponse,
-    };
-  };
 
   const fetchReviews = useCallback(async () => {
     if (!token) {
@@ -221,7 +48,7 @@ function Analyzer({ darkMode, setDarkMode }) {
     }
 
     try {
-      setLoading(true);
+      setFetchingReviews(true);
 
       const response = await fetch(`${API_BASE_URL}/reviews`, {
         method: "GET",
@@ -262,7 +89,7 @@ function Analyzer({ darkMode, setDarkMode }) {
         "error"
       );
     } finally {
-      setLoading(false);
+      setFetchingReviews(false);
     }
   }, [token, handleUnauthorized, showToast]);
 
@@ -284,47 +111,104 @@ function Analyzer({ darkMode, setDarkMode }) {
     }
 
     try {
-      setLoading(true);
+      setAnalyzing(true);
 
-      const analysis = analyzeReviewLocally(trimmedReview);
+      const aiResponse = await fetch(
+        `${API_BASE_URL}/ai/analyze`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            review: trimmedReview,
+          }),
+        }
+      );
 
-      const response = await fetch(`${API_BASE_URL}/reviews`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          review: trimmedReview,
-          sentiment: analysis.sentiment,
-          theme: analysis.theme,
-          response: analysis.response,
-        }),
-      });
-
-      let data = {};
+      let aiData = {};
 
       try {
-        data = await response.json();
+        aiData = await aiResponse.json();
       } catch {
-        data = {};
+        aiData = {};
       }
 
-      if (response.status === 401) {
+      if (aiResponse.status === 401) {
         handleUnauthorized();
         return;
       }
 
-      if (!response.ok) {
+      if (!aiResponse.ok) {
         throw new Error(
-          data.message || "Failed to analyze review"
+          aiData.message ||
+          "Gemini could not analyze the review"
+        );
+      }
+
+      const analysis = aiData.data;
+      const confidence = Number(analysis?.confidence);
+
+      if (
+        !analysis?.sentiment ||
+        !analysis?.theme ||
+        !analysis?.response ||
+        !Number.isFinite(confidence)
+      ) {
+        console.log("Gemini analysis received:", analysis);
+
+        throw new Error(
+          "Gemini returned an incomplete analysis or missing confidence score"
+        );
+      }
+
+      const saveResponse = await fetch(
+        `${API_BASE_URL}/reviews`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            review: trimmedReview,
+            sentiment: analysis.sentiment,
+            theme: analysis.theme,
+            confidence: Math.round(confidence),
+            response: analysis.response,
+          }),
+        }
+      );
+
+      let saveData = {};
+
+      try {
+        saveData = await saveResponse.json();
+      } catch {
+        saveData = {};
+      }
+
+      if (saveResponse.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!saveResponse.ok) {
+        throw new Error(
+          saveData.message ||
+          "The AI analysis was generated but could not be saved"
         );
       }
 
       setReviewText("");
 
+      const confidenceText = ` with ${Math.round(
+        confidence
+      )}% confidence`;
+
       showToast(
-        `Review analyzed as ${analysis.sentiment}`,
+        `Gemini analyzed the review as ${analysis.sentiment}${confidenceText}`,
         "success"
       );
 
@@ -336,7 +220,7 @@ function Analyzer({ darkMode, setDarkMode }) {
         "error"
       );
     } finally {
-      setLoading(false);
+      setAnalyzing(false);
     }
   };
 
@@ -515,6 +399,11 @@ function Analyzer({ darkMode, setDarkMode }) {
             identify its main theme, and generate a suitable
             management response.
           </p>
+
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300">
+            <span aria-hidden="true">✦</span>
+            Powered by Google Gemini AI
+          </div>
         </section>
 
         <section className="mb-10 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
@@ -552,8 +441,8 @@ function Analyzer({ darkMode, setDarkMode }) {
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p
               className={`text-sm ${reviewText.length >= 900
-                  ? "font-semibold text-amber-600 dark:text-amber-400"
-                  : "text-slate-500 dark:text-slate-400"
+                ? "font-semibold text-amber-600 dark:text-amber-400"
+                : "text-slate-500 dark:text-slate-400"
                 }`}
             >
               {reviewText.length}/1000 characters
@@ -562,13 +451,13 @@ function Analyzer({ darkMode, setDarkMode }) {
             <button
               type="button"
               onClick={handleAnalyze}
-              disabled={loading || !reviewText.trim()}
+              disabled={analyzing || !reviewText.trim()}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
-              {loading ? (
+              {analyzing ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Analyzing...
+                  Gemini AI is analyzing...
                 </>
               ) : (
                 <>
@@ -657,7 +546,7 @@ function Analyzer({ darkMode, setDarkMode }) {
             </div>
           </div>
 
-          {loading && results.length === 0 ? (
+          {fetchingReviews && results.length === 0 ? (
             <div className="flex justify-center rounded-2xl border border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900">
               <Loader />
             </div>
@@ -682,16 +571,24 @@ function Analyzer({ darkMode, setDarkMode }) {
                     className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getSentimentBadge(
-                          item.sentiment
-                        )}`}
-                      >
-                        {item.sentiment || "Neutral"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getSentimentBadge(
+                            item.sentiment
+                          )}`}
+                        >
+                          {item.sentiment || "Neutral"}
+                        </span>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                        {item.theme || "Experience"}
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {item.theme || "Experience"}
+                        </span>
+                      </div>
+
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                        {Number.isFinite(Number(item.confidence))
+                          ? `${Math.round(Number(item.confidence))}% Confidence`
+                          : "N/A Confidence"}
                       </span>
                     </div>
 
@@ -733,7 +630,7 @@ function Analyzer({ darkMode, setDarkMode }) {
 
               <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px] text-left">
+                  <table className="w-full min-w-[1050px] text-left">
                     <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                       <tr>
                         <th className="px-6 py-4">
@@ -746,6 +643,10 @@ function Analyzer({ darkMode, setDarkMode }) {
 
                         <th className="px-6 py-4">
                           Theme
+                        </th>
+
+                        <th className="px-6 py-4">
+                          Confidence
                         </th>
 
                         <th className="px-6 py-4">
@@ -781,6 +682,14 @@ function Analyzer({ darkMode, setDarkMode }) {
                           <td className="px-6 py-5">
                             <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                               {item.theme || "Experience"}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-5">
+                            <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                              {Number.isFinite(Number(item.confidence))
+                                ? `${Math.round(Number(item.confidence))}%`
+                                : "N/A"}
                             </span>
                           </td>
 
