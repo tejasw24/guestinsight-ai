@@ -26,6 +26,10 @@ function Analyzer({ darkMode, setDarkMode }) {
   const [reviewToDelete, setReviewToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [reviewToEdit, setReviewToEdit] = useState(null);
+  const [editReviewText, setEditReviewText] = useState("");
+  const [updating, setUpdating] = useState(false);
+
   const [fetchingReviews, setFetchingReviews] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [toast, setToast] = useState("");
@@ -221,6 +225,70 @@ function Analyzer({ darkMode, setDarkMode }) {
       );
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const openEditModal = (review) => {
+    setReviewToEdit(review);
+    setEditReviewText(review.review || "");
+  };
+
+  const closeEditModal = () => {
+    if (updating) return;
+    setReviewToEdit(null);
+    setEditReviewText("");
+  };
+
+  const handleUpdateReview = async () => {
+    const reviewId = reviewToEdit?._id || reviewToEdit?.id;
+    const trimmedReview = editReviewText.trim();
+
+    if (!reviewId) {
+      showToast("Review ID is missing", "error");
+      return;
+    }
+
+    if (!trimmedReview) {
+      showToast("Review text cannot be empty", "error");
+      return;
+    }
+
+    if (!token) {
+      handleUnauthorized();
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ review: trimmedReview }),
+      });
+
+      let data = {};
+      try { data = await response.json(); } catch { data = {}; }
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update review");
+      }
+
+      setReviewToEdit(null);
+      setEditReviewText("");
+      showToast("Review updated successfully", "success");
+      await fetchReviews();
+    } catch (error) {
+      showToast(error.message || "Unable to update review", "error");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -612,7 +680,16 @@ function Analyzer({ darkMode, setDarkMode }) {
                       </p>
                     </div>
 
-                    <div className="mt-5 flex justify-end">
+                    <div className="mt-5 flex flex-wrap justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(item)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                      >
+                        <EditIcon />
+                        Edit
+                      </button>
+
                       <button
                         type="button"
                         onClick={() =>
@@ -698,16 +775,27 @@ function Analyzer({ darkMode, setDarkMode }) {
                           </td>
 
                           <td className="px-6 py-5 text-right">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setReviewToDelete(item)
-                              }
-                              className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
-                            >
-                              <DeleteIcon />
-                              Delete
-                            </button>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(item)}
+                                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                              >
+                                <EditIcon />
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReviewToDelete(item)
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
+                              >
+                                <DeleteIcon />
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -719,6 +807,39 @@ function Analyzer({ darkMode, setDarkMode }) {
           )}
         </section>
       </main>
+
+      {reviewToEdit && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
+          onClick={closeEditModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-review-title"
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+          >
+            <h2 id="edit-review-title" className="text-xl font-bold">Edit Review</h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Update the review text and save your changes.</p>
+            <textarea
+              rows={6}
+              value={editReviewText}
+              onChange={(event) => setEditReviewText(event.target.value)}
+              maxLength={1000}
+              disabled={updating}
+              className="mt-5 w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-950"
+            />
+            <p className="mt-2 text-sm text-slate-500">{editReviewText.length}/1000 characters</p>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" onClick={closeEditModal} disabled={updating} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold dark:border-slate-700">Cancel</button>
+              <button type="button" onClick={handleUpdateReview} disabled={updating || !editReviewText.trim()} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+                {updating ? "Updating..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reviewToDelete && (
         <div
@@ -795,6 +916,15 @@ function Analyzer({ darkMode, setDarkMode }) {
 
       <Footer />
     </div>
+  );
+}
+
+function EditIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+    </svg>
   );
 }
 
