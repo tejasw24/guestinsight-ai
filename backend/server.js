@@ -16,6 +16,9 @@ connectDB();
 
 const app = express();
 
+// Trust Render's reverse proxy
+app.set("trust proxy", 1);
+
 // Security and request middleware
 app.use(helmet());
 
