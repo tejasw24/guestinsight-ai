@@ -13,7 +13,11 @@
 | **Database** | MongoDB Atlas |
 | **AI** | Gemini API |
 
-| 🔗 Project Links | URL |
+---
+
+## 🔗 Project Links
+
+| Resource | URL |
 |---|---|
 | 🌐 **Live Demo** | https://guestinsight-ai.vercel.app/ |
 | ⚙️ **Backend** | https://guestinsight-ai-backend.onrender.com |
@@ -21,9 +25,13 @@
 
 ---
 
+## 📌 Project Overview
+
 GuestInsight AI is a full-stack web application built to make guest review management easier for homestay staff. It uses AI to analyze guest feedback and provide useful information such as sentiment, review themes, confidence scores, and suggested responses.
 
 The application combines a responsive React frontend with a Node.js and Express backend, MongoDB for data storage, and an AI-powered review analysis service.
+
+---
 
 ## Problem & Solution
 
@@ -56,6 +64,8 @@ Each review can be processed to provide:
 
 The analyzed reviews can also be stored and managed through the application, including viewing, searching, updating, and deleting reviews.
 
+---
+
 ## Key Features
 
 | Feature | Description |
@@ -68,6 +78,8 @@ The analyzed reviews can also be stored and managed through the application, inc
 | 🛡️ **Backend Security** | Uses authentication middleware, validation, rate limiting, CORS, and security middleware. |
 | ☁️ **Cloud Deployment** | Frontend deployed on Vercel, backend on Render, and data stored in MongoDB Atlas. |
 
+---
+
 ### Feature Flow
 
 | Step | Process |
@@ -78,6 +90,8 @@ The analyzed reviews can also be stored and managed through the application, inc
 | **04** | AI analyzes the review |
 | **05** | Sentiment, theme, confidence, and response are returned |
 | **06** | Result is displayed and can be stored for later management |
+
+---
 
 ## Screenshots
 
@@ -90,6 +104,8 @@ The analyzed reviews can also be stored and managed through the application, inc
 |:---:|:---:|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![AI Analysis](docs/screenshots/ai-analysis.png) |
 | **Review management and sentiment overview** | **AI-generated sentiment, theme, confidence and response** |
+
+---
 
 ## Tech Stack
 
@@ -108,6 +124,8 @@ The analyzed reviews can also be stored and managed through the application, inc
 | **Frontend Hosting** | Vercel | Deploying the React frontend |
 | **Backend Hosting** | Render | Deploying the Express backend |
 | **Database Hosting** | MongoDB Atlas | Cloud-hosted MongoDB database |
+
+---
 
 ## Architecture
 
@@ -128,7 +146,7 @@ GuestInsight AI follows a full-stack architecture where the React frontend commu
            │ REST API
            ▼
 ┌──────────────────────┐
-│    Node.js + Express │
+│   Node.js + Express  │
 │       Backend        │
 │        Render        │
 └───────┬────────┬─────┘
@@ -142,10 +160,15 @@ GuestInsight AI follows a full-stack architecture where the React frontend commu
         ▼
 ┌──────────────────────┐
 │    MongoDB Atlas     │
-│   Users + Reviews    │
+│    Users + Reviews   │
 └──────────────────────┘
+```
 
+### Project Structure
+
+```text
 guestinsight-ai/
+│
 ├── backend/
 │   ├── config/              # Database and application configuration
 │   ├── controllers/         # Authentication, review and AI business logic
@@ -157,9 +180,9 @@ guestinsight-ai/
 │   └── server.js            # Express application entry point
 │
 ├── docs/
-│   └── screenshots/         # Screenshots used in the README
+│   └── screenshots/          # Screenshots used in the README
 │
-├── public/                  # Public frontend assets
+├── public/                   # Public frontend assets
 │
 ├── src/
 │   ├── assets/              # Images and frontend assets
@@ -170,10 +193,12 @@ guestinsight-ai/
 │   ├── App.jsx              # Main application structure and routing
 │   └── main.jsx             # React application entry point
 │
-├── .gitignore               # Files excluded from version control
+├── .gitignore                # Files excluded from version control
 ├── package.json              # Frontend dependencies and scripts
 └── README.md                 # Project documentation
+```
 
+---
 
 ## AI Feature
 
@@ -190,6 +215,8 @@ GuestInsight AI uses **Google Gemini** to analyze guest reviews and turn unstruc
 | **Suggested Response** | AI-generated response for the guest |
 | **Authentication** | JWT required for the AI request |
 | **API Key Security** | Stored using environment variables |
+
+---
 
 ## AI Workflow
 
@@ -223,14 +250,18 @@ MongoDB Atlas
      │
      ▼
 Review displayed in Dashboard
+```
 
-| Output                 | Example                                                |
-| ---------------------- | ------------------------------------------------------ |
-| **Sentiment**          | Positive                                               |
-| **Theme**              | Experience                                             |
-| **Confidence**         | 98%                                                    |
+### AI Output
+
+| Output | Example |
+|---|---|
+| **Sentiment** | Positive |
+| **Theme** | Experience |
+| **Confidence** | 98% |
 | **Suggested Response** | A short, professional response generated for the guest |
 
+---
 
 ## Authentication & Security
 
@@ -250,6 +281,8 @@ GuestInsight AI includes an authentication layer to protect user accounts and ap
 | **CORS** | Configured to allow communication between the deployed frontend and backend |
 | **Environment Variables** | Secrets and API credentials are kept outside the source code |
 
+---
+
 ## Authentication Flow
 
 ```text
@@ -267,18 +300,18 @@ User
  │
  └── Login ─────────────────┐
                             ▼
-                      Verify Credentials
+                     Verify Credentials
                             │
                             ▼
                        Generate JWT
                             │
                             ▼
-                    Store Token in Client
+                     Store Token in Client
                             │
                             ▼
-                   Access Protected Routes
+                    Access Protected Routes
 
-                   Frontend
+Frontend
    │
    │ Authorization: Bearer <JWT>
    ▼
@@ -290,8 +323,11 @@ Authentication Middleware
    ├── Valid Token ───────► Continue Request
    │
    └── Invalid Token ─────► Reject Request
+```
 
-  ## Backend APIs & Testing
+---
+
+## Backend APIs & Testing
 
 The backend is built with **Node.js and Express** and provides REST APIs for authentication, review management, search, and AI-powered review analysis.
 
@@ -309,6 +345,8 @@ The backend is built with **Node.js and Express** and provides REST APIs for aut
 | `DELETE` | `/api/reviews/:id` | Delete a review | JWT |
 | `GET` | `/api/reviews/search` | Search saved reviews | JWT |
 | `POST` | `/api/ai/analyze` | Analyze a guest review using AI | JWT |
+
+---
 
 ### Two Key APIs
 
@@ -347,6 +385,9 @@ AI Analysis Result
      │
      ▼
 Frontend
+```
+
+---
 
 ## Database & Schema
 
@@ -381,8 +422,11 @@ GuestInsightDB
     ├── Confidence
     ├── Suggested response
     └── Created / Updated timestamps
+```
 
-    ## Deployment & Hosting
+---
+
+## Deployment & Hosting
 
 GuestInsight AI is deployed as a full-stack application using separate hosting services for the frontend and backend, with MongoDB Atlas providing the cloud database.
 
@@ -396,39 +440,44 @@ GuestInsight AI is deployed as a full-stack application using separate hosting s
 | **AI Service** | Google Gemini API | Processes guest review analysis | 🟢 Active |
 | **Source Code** | GitHub | Version control and repository hosting | 🟢 Active |
 
-### Production Architecture
+---
+
+## Production Architecture
 
 ```text
                          INTERNET
                             │
                             ▼
-              ┌─────────────────────────┐
-              │     Vercel Frontend     │
-              │     React + Vite        │
-              └────────────┬────────────┘
-                           │
-                           │ HTTPS / REST API
-                           ▼
-              ┌─────────────────────────┐
-              │     Render Backend      │
-              │   Node.js + Express     │
-              └──────────┬───────┬──────┘
-                         │       │
-              ┌──────────┘       └──────────┐
-              ▼                             ▼
-    ┌──────────────────┐          ┌──────────────────┐
-    │  MongoDB Atlas   │          │   Gemini API     │
-    │  Users + Reviews │          │   AI Analysis    │
-    └──────────────────┘          └──────────────────┘
+                 ┌─────────────────────────┐
+                 │     Vercel Frontend     │
+                 │      React + Vite       │
+                 └────────────┬────────────┘
+                              │
+                              │ HTTPS / REST API
+                              ▼
+                 ┌─────────────────────────┐
+                 │      Render Backend     │
+                 │    Node.js + Express    │
+                 └──────────┬───────┬──────┘
+                            │       │
+                 ┌──────────┘       └──────────┐
+                 ▼                             ▼
+        ┌──────────────────┐          ┌──────────────────┐
+        │  MongoDB Atlas   │          │   Gemini API     │
+        │  Users + Reviews │          │   AI Analysis    │
+        └──────────────────┘          └──────────────────┘
+```
 
-    ## Live Demo & Project Links
+---
+
+## Live Demo & Project Links
 
 | Resource | Link |
 |---|---|
 | 🌐 **Live Application** | https://guestinsight-ai.vercel.app/ |
 | ⚙️ **Backend API** | https://guestinsight-ai-backend.onrender.com |
 | 💻 **GitHub Repository** | https://github.com/tejasw24/guestinsight-ai |
-| 💼 **LinkedIn** | www.linkedin.com/in/tejasw-raj |
+| 💼 **LinkedIn** | https://www.linkedin.com/in/tejasw-raj |
 
 ### Quick Access
 
@@ -437,6 +486,8 @@ https://guestinsight-ai.vercel.app/
 
 **Repository:**  
 https://github.com/tejasw24/guestinsight-ai
+
+---
 
 ## Installation & Local Setup
 
@@ -457,6 +508,9 @@ cd guestinsight-ai
 npm install
 cd backend
 npm install
+```
+
+---
 
 ## Internship Reflection
 
@@ -482,6 +536,8 @@ The biggest learning for me was understanding how different parts of a real appl
 
 This internship helped me move beyond writing individual features and understand the complete development lifecycle of a full-stack application. It also improved my confidence in solving real development and deployment problems independently.
 
+---
+
 ## Acknowledgements
 
 This project was developed as part of the **TBI-GEU Internship Program**.
@@ -490,9 +546,13 @@ I would like to thank the **TBI-GEU Team** for providing the learning environmen
 
 The internship provided an opportunity to apply full-stack development concepts to a real-world use case and gain hands-on experience with modern web technologies, AI integration, databases, authentication, API development, testing, and deployment.
 
+---
+
 ## License
 
 This project was developed as an internship capstone project for educational and demonstration purposes.
+
+---
 
 ## Project Status
 
@@ -512,6 +572,8 @@ This project was developed as an internship capstone project for educational and
 | Render Deployment | ✅ Live |
 | Production Frontend–Backend Integration | ✅ Complete |
 
+---
+
 ## Final Notes
 
 GuestInsight AI demonstrates the complete journey of a full-stack application — from frontend development and backend API design to database integration, AI-powered analysis, authentication, testing, and cloud deployment.
@@ -528,4 +590,3 @@ For project-related information, feedback, or collaboration:
 **Project:** GuestInsight AI  
 **GitHub:** https://github.com/tejasw24/guestinsight-ai  
 **Live Application:** https://guestinsight-ai.vercel.app/
-
